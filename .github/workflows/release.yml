@@ -9,6 +9,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# 릴리스를 만들려면 토큰에 쓰기 권한이 있어야 한다. 기본값은 읽기뿐이다.
+permissions:
+  contents: write
+
 jobs:
   bundle:
     runs-on: ubuntu-latest
