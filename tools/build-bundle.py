@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tarfile
 import urllib.request
+import zipfile
 from pathlib import Path
 
 SHERPA_VERSION = "v1.13.8"
@@ -165,20 +166,21 @@ def main() -> None:
     )
 
     out.mkdir(parents=True, exist_ok=True)
-    name = f"voice-{args.voice}-{args.platform}.tar.gz"
+    name = f"voice-{args.voice}-{args.platform}.zip"
     archive = out / name
-    # 재현 가능하게: 시각과 소유자를 지운다. 같은 입력이면 같은 결과다.
-    with tarfile.open(archive, "w:gz") as tar:
-        for path in sorted(stage.rglob("*")):
-            info = tar.gettarinfo(path, arcname=str(path.relative_to(stage)))
-            info.mtime = 0
-            info.uid = info.gid = 0
-            info.uname = info.gname = ""
-            if path.is_file():
-                with path.open("rb") as fh:
-                    tar.addfile(info, fh)
-            else:
-                tar.addfile(info)
+    # zip 으로 묶는다. 받는 쪽(deskmate)이 이미 zip 을 풀 줄 알고, 그 코드에는
+    # 경로 탈출과 압축 폭탄 검사가 붙어 있다. 형식을 맞추면 그것을 그대로 쓴다.
+    #
+    # 재현 가능하게: 시각을 고정하고 실행 권한만 남긴다. 같은 입력이면 같은 해시다.
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+        for path in sorted(p for p in stage.rglob("*") if p.is_file()):
+            rel = str(path.relative_to(stage))
+            info = zipfile.ZipInfo(rel, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            # 실행 파일은 권한을 잃으면 안 된다. 나머지는 평범한 파일로.
+            executable = rel.startswith("bin/")
+            info.external_attr = (0o755 if executable else 0o644) << 16
+            zf.writestr(info, path.read_bytes())
 
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     size = archive.stat().st_size

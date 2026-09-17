@@ -23,9 +23,9 @@ def main() -> None:
     base = f"https://github.com/{REPO}/releases/download/{args.tag}"
 
     bundles = []
-    for path in sorted(out.glob("voice-*.tar.gz")):
-        # voice-<음성>-<플랫폼>.tar.gz
-        voice, platform = path.name[len("voice-") : -len(".tar.gz")].split("-", 1)
+    for path in sorted(out.glob("voice-*.zip")):
+        # voice-<음성>-<플랫폼>.zip
+        voice, platform = path.name[len("voice-") : -len(".zip")].split("-", 1)
         bundles.append(
             {
                 "voice": voice,
